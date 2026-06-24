@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SocialNexus · Friend Discovery</title>
+
+    <!-- Font & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <!-- D3.js for Graph -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <style>
+        /* ---------- CSS Variables (Light & Dark) ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #f4f7fc;
+            --surface: #ffffff;
+            --surface2: #eef2f7;
+            --text: #1a1a2e;
+            --text2: #4a4a6a;
+            --primary: #6c5ce7;
+            --primary-glow: rgba(108, 92, 231, 0.3);
+            --secondary: #00cec9;
+            --border: #dce3ed;
+            --shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+            --radius: 20px;
+            --transition: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            --font: 'Inter', system-ui, sans-serif;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0d0d1a;
+            --surface: #16162e;
+            --surface2: #1e1e3a;
+            --text: #eaeaff;
+            --text2: #a0a0c0;
+            --border: #2a2a4a;
+            --shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            --primary: #a29bfe;
+            --primary-glow: rgba(162, 155, 254, 0.25);
+            --secondary: #55efc4;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            transition: background var(--transition), color var(--transition);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ---------- Layout ---------- */
+        .app {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 28px;
+            transition: background var(--transition);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        .logo i {
+            color: var(--primary);
+            font-size: 2rem;
+            filter: drop-shadow(0 0 8px var(--primary-glow));
+        }
+        .logo span {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .btn-icon {
+            background: var(--surface2);
+            border: none;
+            color: var(--text2);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-icon:hover {
+            background: var(--primary);
+            color: #fff;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        /* Search Bar */
+        .search-section {
+            margin-bottom: 28px;
+        }
+
+        .search-wrapper {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            background: var(--surface);
+            padding: 8px 8px 8px 20px;
+            border-radius: 60px;
+            box-shadow: var(--shadow);
+            transition: background var(--transition);
+            border: 1px solid transparent;
+        }
+        .search-wrapper:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        .search-wrapper input {
+            flex: 1;
+            min-width: 180px;
+            background: transparent;
+            border: none;
+            padding: 14px 0;
+            font-size: 1rem;
+            color: var(--text);
+            outline: none;
+        }
+        .search-wrapper input::placeholder {
+            color: var(--text2);
+        }
+
+        .search-wrapper button {
+            background: var(--primary);
+            border: none;
+            color: #fff;
+            padding: 12px 28px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .search-wrapper button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        /* Autocomplete suggestions */
+        .suggestions {
+            background: var(--surface);
+            border-radius: 16px;
+            margin-top: 8px;
+            padding: 8px 0;
+            box-shadow: var(--shadow);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            transition: background var(--transition);
+        }
+        .suggestions.active {
+            display: block;
+        }
+        .suggestions div {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .suggestions div:hover {
+            background: var(--surface2);
+        }
+        .suggestions div i {
+            color: var(--primary);
+            width: 20px;
+        }
+
+        /* Grid: Graph + Sidebar */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 28px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 960px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Graph Card */
+        .graph-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            transition: background var(--transition);
+            position: relative;
+            overflow: hidden;
+            min-height: 480px;
+        }
+
+        .graph-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .graph-card .card-header h3 {
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .graph-card .card-header h3 i {
+            color: var(--primary);
+        }
+
+        #graph-container {
+            width: 100%;
+            height: 480px;
+            position: relative;
+            border-radius: 12px;
+            background: var(--surface2);
+            transition: background var(--transition);
+            overflow: hidden;
+        }
+
+        #graph-container svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* nodes & links styling */
+        .node circle {
+            stroke: var(--surface);
+            stroke-width: 2;
+            cursor: pointer;
+            transition: r 0.2s, stroke-width 0.2s;
+        }
+        .node circle:hover {
+            stroke-width: 4;
+            filter: drop-shadow(0 0 12px var(--primary-glow));
+        }
+        .node text {
+            font-size: 10px;
+            fill: var(--text);
+            font-weight: 500;
+            pointer-events: none;
+            text-shadow: 0 0 8px var(--surface);
+        }
+        .link {
+            stroke: var(--border);
+            stroke-width: 2;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+
+        /* Sidebar: Profile & Recommendations */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .profile-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            transition: background var(--transition);
+            text-align: center;
+        }
+
+        .profile-card .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        .profile-card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+        .profile-card .bio {
+            color: var(--text2);
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .profile-card .location {
+            color: var(--text2);
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .profile-card .location i {
+            color: var(--primary);
+        }
+        .profile-card .mutual {
+            background: var(--surface2);
+            padding: 8px 16px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .rec-list {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: background var(--transition);
+        }
+        .rec-list h4 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+        .rec-list h4 i {
+            color: var(--secondary);
+        }
+
+        .rec-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .rec-item:last-child {
+            border-bottom: none;
+        }
+        .rec-item:hover {
+            transform: translateX(6px);
+            color: var(--primary);
+        }
+        .rec-item .r-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--primary);
+        }
+        .rec-item .r-info {
+            flex: 1;
+        }
+        .rec-item .r-info strong {
+            display: block;
+            font-size: 0.95rem;
+        }
+        .rec-item .r-info small {
+            color: var(--text2);
+            font-size: 0.75rem;
+            display: block;
+        }
+        .rec-item .r-info .loc {
+            color: var(--text2);
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .rec-item .badge {
+            background: var(--secondary);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 40px;
+        }
+
+        /* Gamification / Leaderboard */
+        .leaderboard {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: background var(--transition);
+        }
+        .leaderboard h4 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .leaderboard h4 i {
+            color: #fdcb6e;
+        }
+        .lb-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .lb-item:last-child {
+            border-bottom: none;
+        }
+        .lb-item .medal {
+            color: #fdcb6e;
+        }
+        .lb-item .loc-tag {
+            font-size: 0.65rem;
+            color: var(--text2);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 24px 0 8px;
+            font-size: 0.85rem;
+            color: var(--text2);
+            border-top: 1px solid var(--border);
+            margin-top: 20px;
+        }
+
+        /* Utility */
+        .fade-in {
+            animation: fadeUp 0.6s ease both;
+        }
+        @keyframes fadeUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .glow-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 var(--primary-glow);
+            }
+            50% {
+                box-shadow: 0 0 0 16px transparent;
+            }
+        }
+
+        /* scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--surface2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fas fa-connections"></i>
+                <span>SocialNexus</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn-icon" id="themeToggle" title="Toggle Theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="btn-icon" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                </button>
+                <button class="btn-icon" title="Profile">
+                    <i class="fas fa-user-circle"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search -->
+        <div class="search-section">
+            <div class="search-wrapper">
+                <input type="text" id="searchInput" placeholder="Search for a friend... (e.g. Arjun)" autocomplete="off" />
+                <button id="searchBtn"><i class="fas fa-search"></i> Discover</button>
+            </div>
+            <div class="suggestions" id="suggestions"></div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="dashboard">
+            <!-- Graph -->
+            <div class="graph-card fade-in">
+                <div class="card-header">
+                    <h3><i class="fas fa-project-diagram"></i> Friend Network</h3>
+                    <span style="font-size:0.8rem;color:var(--text2);"><i class="fas fa-arrows-alt"></i> Drag & scroll</span>
+                </div>
+                <div id="graph-container"></div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Profile -->
+                <div class="profile-card fade-in" id="profileCard">
+                    <div class="avatar" id="profileAvatar">A</div>
+                    <h2 id="profileName">Arjun Sharma</h2>
+                    <div class="bio" id="profileBio">👨‍💻 Full-Stack Developer · Photography</div>
+                    <div class="location" id="profileLocation"><i class="fas fa-map-marker-alt"></i> <span>Mumbai, Maharashtra</span></div>
+                    <div class="mutual" id="mutualCount">🤝 12 mutual friends</div>
+                    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
+                        <span class="badge" style="background:var(--primary);">🌟 Connector</span>
+                        <span class="badge" style="background:var(--secondary);">🏆 Top 10</span>
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="rec-list fade-in">
+                    <h4><i class="fas fa-robot"></i> AI Recommendations</h4>
+                    <div id="recList">
+                        <!-- dynamically filled -->
+                    </div>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="leaderboard fade-in">
+                    <h4><i class="fas fa-trophy"></i> Connection Leaders</h4>
+                    <div id="leaderboardList">
+                        <div class="lb-item"><span><span class="medal">🥇</span> Priya M.</span> <span>34 <span class="loc-tag">📍 BLR</span></span></div>
+                        <div class="lb-item"><span><span class="medal">🥈</span> Vikram R.</span> <span>28 <span class="loc-tag">📍 HYD</span></span></div>
+                        <div class="lb-item"><span><span class="medal">🥉</span> Ananya S.</span> <span>24 <span class="loc-tag">📍 DEL</span></span></div>
+                        <div class="lb-item"><span>⬆️ Rohan K.</span> <span>21 <span class="loc-tag">📍 PUN</span></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <i class="fas fa-shield-alt"></i> Secure · AI-driven · v2.0
+        </div>
+    </div>
+
+    <script>
+        // ---------- DATA (Indian Names with Locations) ----------
+        const users = [
+            { id: 'arjun', name: 'Arjun Sharma', bio: 'Full-Stack Developer · Photography', location: 'Mumbai, Maharashtra', mutual: 12, group: 'tech' },
+            { id: 'priya', name: 'Priya Mehta', bio: 'Data Scientist · AI/ML', location: 'Bengaluru, Karnataka', mutual: 8, group: 'ai' },
+            { id: 'vikram', name: 'Vikram Reddy', bio: 'UX Designer · Psychology', location: 'Hyderabad, Telangana', mutual: 6, group: 'design' },
+            { id: 'ananya', name: 'Ananya Singh', bio: 'Product Manager · Strategy', location: 'Delhi, NCR', mutual: 9, group: 'design' },
+            { id: 'rohan', name: 'Rohan Kumar', bio: 'DevOps Engineer · Cloud', location: 'Pune, Maharashtra', mutual: 5, group: 'tech' },
+            { id: 'neha', name: 'Neha Patel', bio: 'ML Engineer · Robotics', location: 'Ahmedabad, Gujarat', mutual: 7, group: 'ai' },
+            { id: 'deepak', name: 'Deepak Joshi', bio: 'Backend Developer · Python', location: 'Chennai, Tamil Nadu', mutual: 4, group: 'tech' },
+            { id: 'kavya', name: 'Kavya Nair', bio: 'UI/UX Designer · Branding', location: 'Kochi, Kerala', mutual: 10, group: 'design' },
+            { id: 'rahul', name: 'Rahul Gupta', bio: 'Frontend Developer · React', location: 'Jaipur, Rajasthan', mutual: 11, group: 'tech' },
+            { id: 'sneha', name: 'Sneha Reddy', bio: 'Data Analyst · Finance', location: 'Mumbai, Maharashtra', mutual: 6, group: 'ai' },
+        ];
+
+        // Build graph: nodes & links (mutual friends as edges)
+        function buildGraph(centerId = 'arjun') {
+            const center = users.find(u => u.id === centerId) || users[0];
+            const nodes = [center];
+            const links = [];
+
+            // Add 5 closest (by mutual count)
+            const others = users.filter(u => u.id !== center.id)
+                .sort((a, b) => b.mutual - a.mutual)
+                .slice(0, 5);
+
+            nodes.push(...others);
+
+            // connect center to each
+            others.forEach(o => {
+                links.push({ source: center.id, target: o.id, value: o.mutual });
+            });
+
+            // add some extra edges between others (simulate shared groups)
+            for (let i = 0; i < others.length - 1; i++) {
+                if (Math.random() > 0.5) {
+                    links.push({ source: others[i].id, target: others[i + 1].id, value: Math.floor(Math.random() * 5) + 2 });
+                }
+            }
+
+            return { nodes, links };
+        }
+
+        // ---------- D3 GRAPH ----------
+        let currentGraph = { nodes: [], links: [] };
+        let simulation = null;
+
+        function renderGraph(centerId) {
+            const data = buildGraph(centerId);
+            currentGraph = data;
+
+            const container = document.getElementById('graph-container');
+            const width = container.clientWidth || 700;
+            const height = container.clientHeight || 480;
+
+            // clear
+            container.innerHTML = '';
+
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .style('background', 'transparent');
+
+            // zoom behavior
+            const g = svg.append('g');
+            const zoom = d3.zoom()
+                .scaleExtent([0.3, 2])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+            svg.call(zoom);
+
+            // simulation
+            if (simulation) simulation.stop();
+
+            simulation = d3.forceSimulation(data.nodes)
+                .force('link', d3.forceLink(data.links).id(d => d.id).distance(120).strength(0.4))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(40));
+
+            // links
+            const link = g.append('g')
+                .selectAll('line')
+                .data(data.links)
+                .enter()
+                .append('line')
+                .attr('class', 'link')
+                .style('stroke', getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#dce3ed')
+                .style('stroke-width', d => Math.max(1.5, d.value * 0.5));
+
+            // nodes
+            const node = g.append('g')
+                .selectAll('g')
+                .data(data.nodes)
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended)
+                );
+
+            // circles
+            node.append('circle')
+                .attr('r', d => d.id === centerId ? 28 : 20)
+                .attr('fill', d => {
+                    if (d.id === centerId) return '#6c5ce7';
+                    const colors = { tech: '#00cec9', ai: '#fd79a8', design: '#fdcb6e' };
+                    return colors[d.group] || '#6c5ce7';
+                })
+                .style('stroke', getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff')
+                .style('stroke-width', 2)
+                .on('click', (event, d) => {
+                    selectUser(d.id);
+                });
+
+            // labels
+            node.append('text')
+                .text(d => d.name.split(' ')[0])
+                .attr('dy', 4)
+                .attr('text-anchor', 'middle')
+                .style('fill', getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1a1a2e')
+                .style('font-weight', '600')
+                .style('font-size', '10px');
+
+            // update on simulation tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+
+            // drag functions
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            // update profile & recommendations
+            updateProfile(centerId);
+            updateRecommendations(centerId);
+
+            // resize handler
+            const resizeObserver = new ResizeObserver(() => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                svg.attr('width', w).attr('height', h);
+                simulation.force('center', d3.forceCenter(w / 2, h / 2));
+                simulation.alpha(0.3).restart();
+            });
+            resizeObserver.observe(container);
+        }
+
+        // ---------- UI UPDATES ----------
+        function updateProfile(userId) {
+            const user = users.find(u => u.id === userId) || users[0];
+            document.getElementById('profileAvatar').textContent = user.name.charAt(0);
+            document.getElementById('profileName').textContent = user.name;
+            document.getElementById('profileBio').textContent = user.bio;
+            document.getElementById('profileLocation').querySelector('span').textContent = user.location;
+            document.getElementById('mutualCount').textContent = `🤝 ${user.mutual} mutual friends`;
+        }
+
+        function updateRecommendations(userId) {
+            const recList = document.getElementById('recList');
+            const others = users.filter(u => u.id !== userId)
+                .sort((a, b) => b.mutual - a.mutual)
+                .slice(0, 4);
+
+            recList.innerHTML = others.map(u => `
+                <div class="rec-item" onclick="selectUser('${u.id}')">
+                    <div class="r-avatar">${u.name.charAt(0)}</div>
+                    <div class="r-info">
+                        <strong>${u.name}</strong>
+                        <small>${u.mutual} mutual · ${u.group}</small>
+                        <span class="loc"><i class="fas fa-map-marker-alt" style="font-size:0.5rem;"></i> ${u.location.split(',')[0]}</span>
+                    </div>
+                    <span class="badge">+${Math.floor(Math.random() * 5) + 1}</span>
+                </div>
+            `).join('');
+        }
+
+        // ---------- SEARCH & AUTOCOMPLETE ----------
+        const searchInput = document.getElementById('searchInput');
+        const suggestions = document.getElementById('suggestions');
+
+        searchInput.addEventListener('input', () => {
+            const val = searchInput.value.toLowerCase().trim();
+            if (val.length < 1) {
+                suggestions.classList.remove('active');
+                return;
+            }
+            const matches = users.filter(u => u.name.toLowerCase().includes(val));
+            if (matches.length === 0) {
+                suggestions.classList.remove('active');
+                return;
+            }
+            suggestions.innerHTML = matches.map(u => `
+                <div onclick="selectUser('${u.id}')">
+                    <i class="fas fa-user-circle"></i> ${u.name} <span style="font-size:0.7rem;color:var(--text2);">📍 ${u.location.split(',')[0]}</span>
+                </div>
+            `).join('');
+            suggestions.classList.add('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-wrapper') && !e.target.closest('.suggestions')) {
+                suggestions.classList.remove('active');
+            }
+        });
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            const val = searchInput.value.trim();
+            if (!val) return;
+            const match = users.find(u => u.name.toLowerCase().includes(val.toLowerCase()));
+            if (match) {
+                selectUser(match.id);
+                suggestions.classList.remove('active');
+            } else {
+                alert('User not found. Try Arjun, Priya, Vikram, etc.');
+            }
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('searchBtn').click();
+            }
+        });
+
+        // ---------- SELECT USER ----------
+        window.selectUser = function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+            searchInput.value = user.name;
+            suggestions.classList.remove('active');
+            renderGraph(userId);
+        };
+
+        // ---------- THEME TOGGLE ----------
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', () => {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            themeToggle.innerHTML = next === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+            const center = currentGraph.nodes.find(n => n.id)?.id || 'arjun';
+            renderGraph(center);
+        });
+
+        // ---------- INIT ----------
+        window.addEventListener('load', () => {
+            renderGraph('arjun');
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        });
+
+        // Handle resize
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const center = currentGraph.nodes.find(n => n.id)?.id || 'arjun';
+                renderGraph(center);
+            }, 300);
+        });
+    </script>
+
+</body>
+</html>
